@@ -73,11 +73,17 @@ jobs:
         run: |
           # Wails only warns and skips the installer when makensis is missing,
           # so pin it here instead of debugging an empty build/bin later.
-          if ! command -v makensis >/dev/null 2>&1 && [ -x "/c/Program Files (x86)/NSIS/makensis.exe" ]; then
-            echo "/c/Program Files (x86)/NSIS" >> "$GITHUB_PATH"
+          # NOTE: choco refreshes PATH for new processes only, so export it
+          # in this shell as well, or `makensis -VERSION` below fails with 127.
+          NSIS_DIR="/c/Program Files (x86)/NSIS"
+          if ! command -v makensis >/dev/null 2>&1 && [ -x "$NSIS_DIR/makensis.exe" ]; then
+            echo "$NSIS_DIR" >> "$GITHUB_PATH"
+            export PATH="$PATH:$NSIS_DIR"
           fi
           if ! command -v makensis >/dev/null 2>&1; then
             choco install nsis -y
+            export PATH="$PATH:$NSIS_DIR"
+            echo "$NSIS_DIR" >> "$GITHUB_PATH"
           fi
           makensis -VERSION
 

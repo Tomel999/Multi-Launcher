@@ -139,22 +139,6 @@ jobs:
           npm install
           npm run build
 
-      - name: Check build prerequisites (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "=== Go version ==="
-          go version
-          echo "=== GCC ==="
-          command -v gcc && gcc --version || echo "gcc NOT FOUND"
-          echo "=== Node ==="
-          command -v node && node --version || echo "node NOT FOUND"
-          echo "=== NPM ==="
-          command -v npm && npm --version || echo "npm NOT FOUND"
-          echo "=== Wails ==="
-          go run github.com/wailsapp/wails/v2/cmd/wails@latest version || echo "wails CLI failed"
-
       - name: Build
         shell: bash
         run: |
@@ -192,8 +176,13 @@ jobs:
             command -v makensis || { echo "makensis missing in Build step; wails would silently skip the installer"; exit 1; }
             echo "Build step sees makensis at: $(command -v makensis)"
           fi
+          # Pin wails CLI to the same version declared in go.mod so the
+          # toolchain does not auto-upgrade to a newer CLI that requires a
+          # newer Go version than we have installed.
+          WAILS_VERSION="v2.13.0"
+          echo "Using Wails CLI $WAILS_VERSION"
           # shellcheck disable=SC2086
-          go run github.com/wailsapp/wails/v2/cmd/wails@latest build -platform ${{ matrix.platform }} -clean -v ${{ matrix.wails_flags }} -ldflags "-w -s -X 'multilauncherwails/internal/version.Version=$VERSION'"
+          go run github.com/wailsapp/wails/v2/cmd/wails@"$WAILS_VERSION" build -platform ${{ matrix.platform }} -clean ${{ matrix.wails_flags }} -ldflags "-w -s -X 'multilauncherwails/internal/version.Version=$VERSION'"
           echo "=== Build output ==="
           ls -la build/bin/ || echo "build/bin/ does not exist"
 

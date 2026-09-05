@@ -103,6 +103,14 @@ jobs:
             jq --arg v "$NSIS_VER" '.info.productVersion = $v' wails.json > wails.json.tmp && mv wails.json.tmp wails.json
           fi
           echo "Stamping version: $VERSION"
+          if [[ "${{ matrix.artifact }}" == windows-* ]]; then
+            # Belt and braces: the Build shell must see makensis in-process,
+            # regardless of what the Ensure step managed to persist via PATH.
+            if ! command -v makensis >/dev/null 2>&1 && [ -x "/c/Program Files (x86)/NSIS/makensis.exe" ]; then
+              export PATH="$PATH:/c/Program Files (x86)/NSIS"
+            fi
+            command -v makensis || { echo "makensis missing in Build step; wails would silently skip the installer"; exit 1; }
+          fi
           # shellcheck disable=SC2086
           go run github.com/wailsapp/wails/v2/cmd/wails@latest build -platform ${{ matrix.platform }} -clean ${{ matrix.wails_flags }} -ldflags "-w -s -X 'multilauncherwails/internal/version.Version=$VERSION'"
 

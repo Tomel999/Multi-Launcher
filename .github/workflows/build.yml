@@ -46,7 +46,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -72,20 +72,64 @@ jobs:
         shell: bash
         run: |
           # Wails only warns and skips the installer when makensis is missing,
-          # so pin it here instead of debugging an empty build/bin later.
-          # NOTE: choco refreshes PATH for new processes only, so export it
-          # in this shell as well, or `makensis -VERSION` below fails with 127.
-          NSIS_DIR="/c/Program Files (x86)/NSIS"
-          if ! command -v makensis >/dev/null 2>&1 && [ -x "$NSIS_DIR/makensis.exe" ]; then
-            echo "$NSIS_DIR" >> "$GITHUB_PATH"
-            export PATH="$PATH:$NSIS_DIR"
+          # so we must guarantee it is on PATH for both the Build and Package steps.
+          #
+          # The problem: choco installs NSIS to a path that varies between runner
+          # images, and GITHUB_PATH only takes effect in *subsequent* steps — not
+          # the current shell. We solve this by searching the usual locations and
+          # also falling back to a fresh choco install, then writing the resolved
+          # directory to GITHUB_PATH for all later steps.
+          find_makensis() {
+            for d in \
+              "/c/Program Files (x86)/NSIS" \
+              "/c/Program Files/NSIS" \
+              "/c/ProgramData/chocolatey/bin" \
+              "/c/ProgramData/chocolatey/lib/nsis/tools" \
+              "/c/tools/nsis" \
+              "/c/Program Files (x86)/NSIS/Bin"; do
+              if [ -x "$d/makensis.exe" ] || [ -x "$d/makensis" ]; then
+                echo "$d"
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          if command -v makensis >/dev/null 2>&1; then
+            echo "makensis already on PATH"
+          else
+            NSIS_DIR="$(find_makensis || true)"
+            if [ -n "$NSIS_DIR" ]; then
+              echo "Found NSIS at $NSIS_DIR"
+              echo "$NSIS_DIR" >> "$GITHUB_PATH"
+              export PATH="$NSIS_DIR:$PATH"
+            fi
           fi
+
           if ! command -v makensis >/dev/null 2>&1; then
-            choco install nsis -y
-            export PATH="$PATH:$NSIS_DIR"
-            echo "$NSIS_DIR" >> "$GITHUB_PATH"
+            echo "Installing NSIS via choco..."
+            choco upgrade nsis -y --no-progress
+            # Re-search after install — choco may put it somewhere unexpected.
+            NSIS_DIR="$(find_makensis || true)"
+            if [ -z "$NSIS_DIR" ]; then
+              # Last resort: search the entire C: drive (runner is ephemeral).
+              NSIS_DIR="$(find /c/ -name 'makensis.exe' -type f 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true)"
+            fi
+            if [ -n "$NSIS_DIR" ]; then
+              echo "NSIS found at $NSIS_DIR after choco install"
+              echo "$NSIS_DIR" >> "$GITHUB_PATH"
+              export PATH="$NSIS_DIR:$PATH"
+            else
+              echo "ERROR: makensis could not be found anywhere after choco install"
+              exit 1
+            fi
           fi
+
+          echo "=== makensis check ==="
+          command -v makensis
           makensis -VERSION
+          echo "GITHUB_PATH contents for NSIS:"
+          grep -i nsis "$GITHUB_PATH" || echo "(not in GITHUB_PATH yet)"
 
       - name: Build
         shell: bash
@@ -104,12 +148,24 @@ jobs:
           fi
           echo "Stamping version: $VERSION"
           if [[ "${{ matrix.artifact }}" == windows-* ]]; then
-            # Belt and braces: the Build shell must see makensis in-process,
-            # regardless of what the Ensure step managed to persist via PATH.
-            if ! command -v makensis >/dev/null 2>&1 && [ -x "/c/Program Files (x86)/NSIS/makensis.exe" ]; then
-              export PATH="$PATH:/c/Program Files (x86)/NSIS"
+            # Belt and braces: search all common NSIS install locations.
+            # GITHUB_PATH from the Ensure step should have covered this, but
+            # bash shells in the same job don't always inherit it correctly.
+            if ! command -v makensis >/dev/null 2>&1; then
+              for d in \
+                "/c/Program Files (x86)/NSIS" \
+                "/c/Program Files/NSIS" \
+                "/c/ProgramData/chocolatey/bin" \
+                "/c/ProgramData/chocolatey/lib/nsis/tools" \
+                "/c/tools/nsis"; do
+                if [ -x "$d/makensis.exe" ]; then
+                  export PATH="$d:$PATH"
+                  break
+                fi
+              done
             fi
             command -v makensis || { echo "makensis missing in Build step; wails would silently skip the installer"; exit 1; }
+            echo "Build step sees makensis at: $(command -v makensis)"
           fi
           # shellcheck disable=SC2086
           go run github.com/wailsapp/wails/v2/cmd/wails@latest build -platform ${{ matrix.platform }} -clean ${{ matrix.wails_flags }} -ldflags "-w -s -X 'multilauncherwails/internal/version.Version=$VERSION'"
@@ -119,7 +175,23 @@ jobs:
         run: |
           mkdir -p dist
           echo "workflow sha: $(git rev-parse HEAD)"
-          command -v makensis && makensis -VERSION || echo "makensis NOT visible in Package step"
+          if [[ "${{ matrix.artifact }}" == windows-* ]]; then
+            # Same NSIS search as Ensure/Build steps.
+            if ! command -v makensis >/dev/null 2>&1; then
+              for d in \
+                "/c/Program Files (x86)/NSIS" \
+                "/c/Program Files/NSIS" \
+                "/c/ProgramData/chocolatey/bin" \
+                "/c/ProgramData/chocolatey/lib/nsis/tools" \
+                "/c/tools/nsis"; do
+                if [ -x "$d/makensis.exe" ]; then
+                  export PATH="$d:$PATH"
+                  break
+                fi
+              done
+            fi
+            echo "Package step makensis: $(command -v makensis || echo 'NOT FOUND')"
+          fi
           if [[ "${{ matrix.artifact }}" == darwin-* ]]; then
             SUM="shasum -a 256"
           else

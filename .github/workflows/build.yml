@@ -131,6 +131,14 @@ jobs:
           echo "GITHUB_PATH contents for NSIS:"
           grep -i nsis "$GITHUB_PATH" || echo "(not in GITHUB_PATH yet)"
 
+      - name: Build frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend
+          npm install
+          npm run build
+
       - name: Build
         shell: bash
         run: |

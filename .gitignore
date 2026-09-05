@@ -35,7 +35,3 @@ Desktop.ini
 
 # Local documentation copy
 docs/
-AGENTS.md
-
-# Vendored third-party runtimes (1.7GB+ JCEF/JDK, never commit)
-dawn/

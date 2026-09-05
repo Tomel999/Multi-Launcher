@@ -67,6 +67,20 @@ jobs:
             fi
           fi
 
+      - name: Ensure NSIS (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          # Wails only warns and skips the installer when makensis is missing,
+          # so pin it here instead of debugging an empty build/bin later.
+          if ! command -v makensis >/dev/null 2>&1 && [ -x "/c/Program Files (x86)/NSIS/makensis.exe" ]; then
+            echo "/c/Program Files (x86)/NSIS" >> "$GITHUB_PATH"
+          fi
+          if ! command -v makensis >/dev/null 2>&1; then
+            choco install nsis -y
+          fi
+          makensis -VERSION
+
       - name: Build
         shell: bash
         run: |
@@ -100,6 +114,11 @@ jobs:
               # Portable binary (consumed by the auto-updater).
               mv "build/bin/Multi Launcher.exe" "dist/${{ matrix.asset }}"
               # Per-user NSIS installer (first-time install, no admin needed).
+              if ! ls build/bin/*-installer.exe >/dev/null 2>&1; then
+                echo "NSIS installer was not produced; contents of build/bin:"
+                ls -la build/bin
+                exit 1
+              fi
               mv build/bin/*-installer.exe "dist/Multi-Launcher-windows-amd64-setup.exe"
               ;;
             linux-*)

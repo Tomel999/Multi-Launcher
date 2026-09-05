@@ -157,22 +157,19 @@ jobs:
           fi
           echo "Stamping version: $VERSION"
           if [[ "${{ matrix.artifact }}" == windows-* ]]; then
-            # Belt and braces: search all common NSIS install locations.
-            # GITHUB_PATH from the Ensure step should have covered this, but
-            # bash shells in the same job don't always inherit it correctly.
-            if ! command -v makensis >/dev/null 2>&1; then
-              for d in \
-                "/c/Program Files (x86)/NSIS" \
-                "/c/Program Files/NSIS" \
-                "/c/ProgramData/chocolatey/bin" \
-                "/c/ProgramData/chocolatey/lib/nsis/tools" \
-                "/c/tools/nsis"; do
-                if [ -x "$d/makensis.exe" ]; then
-                  export PATH="$d:$PATH"
-                  break
-                fi
-              done
-            fi
+            # Wails build needs makensis on PATH. GITHUB_PATH from the Ensure
+            # step does not reliably carry over to this bash shell, so we
+            # unconditionally prepend every known location to PATH.
+            for d in \
+              "/c/Program Files (x86)/NSIS" \
+              "/c/Program Files/NSIS" \
+              "/c/ProgramData/chocolatey/bin" \
+              "/c/ProgramData/chocolatey/lib/nsis/tools" \
+              "/c/tools/nsis"; do
+              if [ -d "$d" ]; then
+                export PATH="$d:$PATH"
+              fi
+            done
             command -v makensis || { echo "makensis missing in Build step; wails would silently skip the installer"; exit 1; }
             echo "Build step sees makensis at: $(command -v makensis)"
           fi

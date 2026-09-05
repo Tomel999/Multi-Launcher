@@ -1,0 +1,17 @@
+{
+  "id": "js-demo",
+  "name": "JS Demo (backend + frontend)",
+  "version": "1.0.0",
+  "category": "examples",
+  "description": "Przyklad pluginu goja: eventy launch:start, storage, komenda, messaging frontend<->backend, slot i widok w sidebarze.",
+  "author": "Tomel",
+  "homepage": "https://github.com/Tomel999/Multi-Launcher",
+  "entry": "main.js",
+  "frontend": "frontend/index.js",
+  "minLauncherVersion": "1.3.0",
+  "permissions": ["events:*", "accounts:read", "ui:slots", "ui:views", "ui:notifications"],
+  "settings": [
+    { "key": "greeting", "type": "string", "label": "Powitanie", "default": "Cześć z pluginu!" },
+    { "key": "showAccounts", "type": "bool", "label": "Pokazuj konta w widoku", "default": true }
+  ]
+}

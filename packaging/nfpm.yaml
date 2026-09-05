@@ -1,0 +1,26 @@
+# nfpm config for the Multi Launcher system packages (.deb/.rpm).
+# Built in CI from the release tag: PKG_VERSION must be set without the
+# leading "v", e.g. PKG_VERSION=1.2.3.
+name: multilauncher
+arch: amd64
+platform: linux
+version: ${PKG_VERSION}
+maintainer: tomel999 <multilauncher@tomel999.de>
+description: Multi Launcher - Minecraft launcher
+license: GPL-3.0-only
+contents:
+  - src: build/bin/multilauncher
+    dst: /usr/bin/multilauncher
+  - src: packaging/multilauncher.desktop
+    dst: /usr/share/applications/multilauncher.desktop
+  - src: build/appicon.png
+    dst: /usr/share/icons/hicolor/256x256/apps/multilauncher.png
+overrides:
+  deb:
+    depends:
+      - libgtk-3-0
+      - libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
+  rpm:
+    depends:
+      - gtk3
+      - webkit2gtk4.1 | webkit2gtk4.0

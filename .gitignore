@@ -1,0 +1,41 @@
+# Build output. Note: build/windows/installer/project.nsi IS versioned (the NSIS
+# installer sources), everything else under build/ is generated or local-only.
+build/bin/
+build/windows/installer/wails_tools.nsh
+build/windows/installer/tmp/
+build/windows/icon.ico
+build/windows/info.json
+build/windows/wails.exe.manifest
+frontend/dist/
+*.exe
+*.test
+*.out
+
+# Frontend dependencies and dev server logs
+node_modules/
+*.log
+
+# Runtime data (root only)
+/plugins/
+backups/
+
+# Secrets
+.env
+.env.*
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+
+# Local documentation copy
+docs/
+AGENTS.md
+
+# Vendored third-party runtimes (1.7GB+ JCEF/JDK, never commit)
+dawn/

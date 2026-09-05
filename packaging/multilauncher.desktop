@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Multi Launcher
+Comment=Minecraft launcher
+Exec=multilauncher
+Icon=multilauncher
+Type=Application
+Categories=Game;
+Terminal=false
+StartupWMClass=Multi Launcher

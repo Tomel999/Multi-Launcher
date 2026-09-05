@@ -1,0 +1,23 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Multi Launcher",
+  "outputfilename": "Multi Launcher",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "preBuildHooks": {
+    "windows/*": "powershell -NoProfile -Command \"if (Test-Path build/bin) { Remove-Item build/bin/* -Recurse -Force -ErrorAction SilentlyContinue }\""
+  },
+  "author": {
+    "name": "tomel999",
+    "email": "multilauncher@tomel999.de"
+  },
+  "info": {
+    "companyName": "tomel999",
+    "productName": "Multi Launcher",
+    "productVersion": "0.0.0",
+    "copyright": "tomel999",
+    "comments": "Minecraft launcher"
+  }
+}

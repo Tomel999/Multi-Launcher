@@ -1,0 +1,171 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+            artifact: linux-amd64
+            asset: Multi-Launcher-linux-amd64.tar.gz
+          - os: windows-latest
+            platform: windows/amd64
+            artifact: windows-amd64
+            asset: Multi-Launcher-windows-amd64.exe
+            wails_flags: -nsis -installscope user
+          - os: macos-15-intel
+            platform: darwin/amd64
+            artifact: darwin-amd64
+            asset: Multi-Launcher-darwin-amd64.zip
+          - os: macos-latest
+            platform: darwin/arm64
+            artifact: darwin-arm64
+            asset: Multi-Launcher-darwin-arm64.zip
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Linux deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.0-dev || sudo apt-get install -y libwebkit2gtk-4.1-dev
+          if pkg-config --exists webkit2gtk-4.0 2>/dev/null; then echo "webkit 4.0 ok"; fi
+          if ! pkg-config --exists webkit2gtk-4.0 2>/dev/null && pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
+            pc=$(pkg-config --variable pc_path pkg-config | tr ':' '\n' | while read d; do [ -f "$d/webkit2gtk-4.1.pc" ] && echo "$d/webkit2gtk-4.1.pc" && break; done)
+            [ -z "$pc" ] && pc=$(find /usr -name "webkit2gtk-4.1.pc" 2>/dev/null | head -n1)
+            if [ -n "$pc" ]; then
+              dir=$(dirname "$pc")
+              sudo cp "$pc" "$dir/webkit2gtk-4.0.pc" 2>/dev/null || sudo ln -sf "$pc" "$dir/webkit2gtk-4.0.pc"
+              echo "aliased 4.1 -> 4.0 at $dir/webkit2gtk-4.0.pc"
+            fi
+          fi
+
+      - name: Build
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+            NSIS_VER="${VERSION#v}"
+          else
+            VERSION="dev-${GITHUB_SHA::7}"
+            NSIS_VER="0.0.0"
+          fi
+          # The NSIS installer embeds a numeric x.y.z version in its metadata;
+          # keep wails.json in sync (CI runners are ephemeral, no commit).
+          if [[ "${{ matrix.artifact }}" == windows-* ]]; then
+            jq --arg v "$NSIS_VER" '.info.productVersion = $v' wails.json > wails.json.tmp && mv wails.json.tmp wails.json
+          fi
+          echo "Stamping version: $VERSION"
+          # shellcheck disable=SC2086
+          go run github.com/wailsapp/wails/v2/cmd/wails@latest build -platform ${{ matrix.platform }} -clean ${{ matrix.wails_flags }} -ldflags "-w -s -X 'multilauncherwails/internal/version.Version=$VERSION'"
+
+      - name: Package release asset
+        shell: bash
+        run: |
+          mkdir -p dist
+          if [[ "${{ matrix.artifact }}" == darwin-* ]]; then
+            SUM="shasum -a 256"
+          else
+            SUM="sha256sum"
+          fi
+          case "${{ matrix.artifact }}" in
+            windows-*)
+              # Portable binary (consumed by the auto-updater).
+              mv "build/bin/Multi Launcher.exe" "dist/${{ matrix.asset }}"
+              # Per-user NSIS installer (first-time install, no admin needed).
+              mv build/bin/*-installer.exe "dist/Multi-Launcher-windows-amd64-setup.exe"
+              ;;
+            linux-*)
+              mv "build/bin/Multi Launcher" "build/bin/multilauncher"
+              chmod 0755 "build/bin/multilauncher"
+              # Portable archives (the .tar.gz is consumed by the auto-updater).
+              tar -czf "dist/${{ matrix.asset }}" -C build/bin multilauncher
+              tar -cJf "dist/Multi-Launcher-linux-amd64.tar.xz" -C build/bin multilauncher
+              # System packages (.deb/.rpm install to /usr/bin; those installs
+              # are manager-owned and update via apt/dnf, not the updater).
+              if [[ "${{ github.ref_type }}" == "tag" ]]; then
+                export PKG_VERSION="${GITHUB_REF_NAME#v}"
+              else
+                export PKG_VERSION="0.0.0+${GITHUB_SHA::7}"
+              fi
+              go run github.com/goreleaser/nfpm/v2/cmd/nfpm@latest package \
+                --config packaging/nfpm.yaml --packager deb --target ./dist/
+              go run github.com/goreleaser/nfpm/v2/cmd/nfpm@latest package \
+                --config packaging/nfpm.yaml --packager rpm --target ./dist/
+              # AppImage (portable, keeps working with the auto-updater path).
+              curl -sSL -o appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+              chmod +x appimagetool
+              rm -rf MultiLauncher.AppDir && mkdir -p MultiLauncher.AppDir/usr/bin
+              cp "build/bin/multilauncher" MultiLauncher.AppDir/usr/bin/
+              cp "packaging/multilauncher.desktop" MultiLauncher.AppDir/
+              cp "build/appicon.png" MultiLauncher.AppDir/multilauncher.png
+              printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexec "$HERE/usr/bin/multilauncher" "$@"\n' > MultiLauncher.AppDir/AppRun
+              chmod +x MultiLauncher.AppDir/AppRun
+              ARCH=x86_64 ./appimagetool --appimage-extract-and-run \
+                MultiLauncher.AppDir "dist/Multi-Launcher-linux-amd64.AppImage"
+              ;;
+            darwin-*)
+              # Zip with the .app bundle (consumed by the auto-updater).
+              ditto -c -k --sequesterRsrc --keepParent "build/bin/Multi Launcher.app" "dist/${{ matrix.asset }}"
+              # DMG for first-time installs (drag to /Applications).
+              rm -rf dmg && mkdir dmg
+              cp -R "build/bin/Multi Launcher.app" dmg/
+              ln -s /Applications dmg/Applications
+              hdiutil create -volname "Multi Launcher" -srcfolder dmg -ov -format UDZO "dist/Multi-Launcher-${{ matrix.artifact }}.dmg"
+              ;;
+          esac
+          (cd dist && for f in *; do
+            case "$f" in *.sha256) ;; *) $SUM "$f" > "$f.sha256";; esac
+          done)
+          if [ -z "$(ls -A dist)" ]; then echo "dist is empty, failing"; exit 1; fi
+          ls -la dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MultiLauncher-${{ matrix.artifact }}
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*
+          generate_release_notes: true

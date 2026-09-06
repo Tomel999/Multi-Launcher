@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -254,6 +255,21 @@ func (a *App) RemovePlugin(id string) error {
 		return err
 	}
 	runtime.EventsEmit(a.ctx, "plugins:changed", nil)
+	return nil
+}
+
+// RestartApp relaunches the executable and quits this instance, so plugin
+// installs, removals, toggles and settings take effect from a clean state.
+func (a *App) RestartApp() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(exe, os.Args[1:]...)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	runtime.Quit(a.ctx)
 	return nil
 }
 

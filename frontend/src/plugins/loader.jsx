@@ -1,6 +1,7 @@
 import { GetEnabledPlugins, GetPluginSettings } from "../../wailsjs/go/main/App";
 import { createPluginAPI, unloadPlugin } from "./api";
 import { setView } from "./registry";
+export { unloadPlugin };
 const loaded = /* @__PURE__ */ new Set();
 export async function syncPlugins() {
   let plugins;

@@ -224,7 +224,7 @@
 .home-logs-btn {
   position: absolute;
   top: 16px;
-  right: 16px;
+  right: 64px;
   width: 44px;
   height: 44px;
   display: flex;
@@ -3881,6 +3881,45 @@
 }
 .plugin-card-actions .topbar-btn.danger {
   margin-left: 0;
+}
+.plugin-config-actions .modal-btn {
+  min-width: 96px;
+  transition: background 0.15s, box-shadow 0.15s, filter 0.15s;
+}
+.plugin-config-actions .modal-btn:hover {
+  filter: brightness(1.25);
+}
+.plugin-config-actions .modal-btn.primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+.plugin-config-actions .modal-btn.primary:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 12px var(--color-accent);
+}
+.plugin-config select,
+.plugin-config input[type="text"],
+.plugin-config input[type="number"] {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+  max-width: 220px;
+}
+.plugin-config select:focus,
+.plugin-config input[type="text"]:focus,
+.plugin-config input[type="number"]:focus {
+  border-color: var(--color-accent);
+}
+.plugin-config input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
 }
 .plugins-empty {
   text-align: center;

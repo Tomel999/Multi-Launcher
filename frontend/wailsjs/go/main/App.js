@@ -310,8 +310,16 @@ export function RemovePlugin(arg1) {
   return window['go']['main']['App']['RemovePlugin'](arg1);
 }
 
+export function RenameInstance(arg1, arg2) {
+  return window['go']['main']['App']['RenameInstance'](arg1, arg2);
+}
+
 export function RenameWorld(arg1, arg2, arg3) {
   return window['go']['main']['App']['RenameWorld'](arg1, arg2, arg3);
+}
+
+export function RestartApp() {
+  return window['go']['main']['App']['RestartApp']();
 }
 
 export function RunPluginCommand(arg1, arg2) {

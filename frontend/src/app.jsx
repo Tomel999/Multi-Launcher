@@ -1,6 +1,6 @@
 ﻿import "./app.css";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { HttpGet, CurseForgeSearch, CurseForgeCategories, CurseForgeFiles, GetPanoramaVersions, LaunchInstance, LaunchClientInstance, Clients, ClientVersions, StopInstance, IsGameRunning, GetProgress, GetState, GetLogs, SetDownloadConcurrency, GetSystemMemory, CancelInstall, GetPersistedState, SaveState, DeleteInstance, DeleteLunarFolder, DeleteFeatherFolder, DeleteDawnFolder, InstallModpack, GetAccounts, GetActiveAccount, AddOfflineAccount, AddMicrosoftAccount, PollMicrosoftLogin, SetActiveAccount, DeleteAccount, UploadSkin, ListLocalSkins, DeleteLocalSkin, PickJavaFile, TestJavaPath, ListContent, DownloadContent, InspectMod, OpenInstanceFolder, DuplicateInstance, ExportInstance, ListWorlds, GetWorldInfo, GetItemIcon, OpenWorldFolder, DuplicateWorld, RenameWorld, DeleteWorld, ExportWorld, ImportWorld, ListScreenshots, GetScreenshot, DeleteScreenshot, CopyScreenshotToClipboard, OpenScreenshotsFolder, InstallPluginFromZip, DiskUsage, CleanCache, InstanceSize, CreateInstance, PruneOrphanedVersions } from "../wailsjs/go/main/App";
+import { HttpGet, CurseForgeSearch, CurseForgeCategories, CurseForgeFiles, GetPanoramaVersions, LaunchInstance, LaunchClientInstance, Clients, ClientVersions, StopInstance, IsGameRunning, GetProgress, GetState, GetLogs, SetDownloadConcurrency, GetSystemMemory, CancelInstall, GetPersistedState, SaveState, DeleteInstance, DeleteLunarFolder, DeleteFeatherFolder, DeleteDawnFolder, InstallModpack, GetAccounts, GetActiveAccount, AddOfflineAccount, AddMicrosoftAccount, PollMicrosoftLogin, SetActiveAccount, DeleteAccount, UploadSkin, ListLocalSkins, DeleteLocalSkin, PickJavaFile, TestJavaPath, ListContent, DownloadContent, InspectMod, OpenInstanceFolder, DuplicateInstance, ExportInstance, ListWorlds, GetWorldInfo, GetItemIcon, OpenWorldFolder, DuplicateWorld, RenameWorld, DeleteWorld, ExportWorld, ImportWorld, ListScreenshots, GetScreenshot, DeleteScreenshot, CopyScreenshotToClipboard, OpenScreenshotsFolder, InstallPluginFromZip, DiskUsage, CleanCache, InstanceSize, CreateInstance, RenameInstance, PruneOrphanedVersions } from "../wailsjs/go/main/App";
 import { EventsOn, WindowMinimise, WindowUnminimise, Quit, BrowserOpenURL } from "../wailsjs/runtime/runtime";
 import { PanoramaBackground } from "./PanoramaBackground";
 import { SkinViewer3D } from "./SkinViewer3D";
@@ -1925,7 +1925,7 @@ export function App() {
     });
   };
   const updateInstanceMeta = (instId, patch) => {
-    setGroups(groups.map((g) => ({
+    setGroups((prev) => prev.map((g) => ({
       ...g,
       instances: g.instances.map((i) => i.id === instId ? { ...i, meta: { ...i.meta, ...patch } } : i)
     })));
@@ -2003,6 +2003,18 @@ export function App() {
     if (!settingsInst) return;
     const cur = settingsInst.meta.overrides?.general || { name: settingsInst.name, notes: "", gameDir: "", showConsole: true, autoCloseConsole: true };
     updateInstanceMeta(settingsInst.id, { overrides: { ...settingsInst.meta.overrides, general: { ...cur, ...patch } } });
+  };
+  const renameInst = async (raw) => {
+    if (!settingsInst) return;
+    const draft = String(raw ?? "").trim();
+    if (!draft || draft === settingsInst.name) return;
+    try {
+      await RenameInstance(settingsInst.name, draft);
+      const cur = settingsInst.meta.overrides?.general || {};
+      setGroups((prev) => prev.map((g) => ({ ...g, instances: (g.instances || []).map((i) => i.id === settingsInst.id ? { ...i, name: draft, meta: { ...i.meta, overrides: { ...i.meta.overrides, general: { ...cur, name: draft } } } } : i) })));
+    } catch (e) {
+      flashMsg(String(e));
+    }
   };
   const onSettingsIconPicked = (e) => {
     const file = e.target.files?.[0];
@@ -2378,6 +2390,8 @@ export function App() {
     className="isw-name-input"
     value={settingsInst.meta.overrides?.general?.name ?? settingsInst.name}
     onChange={(e) => setGeneral({ name: e.target.value })}
+    onBlur={(e) => renameInst(e.target.value)}
+    onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
   />
                                 <span className="isw-sub">{instVersion(settingsInst)}</span>
                             </div>

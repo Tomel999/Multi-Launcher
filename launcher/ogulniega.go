@@ -305,6 +305,9 @@ func ogulniegaEnsureMods(entry *ogulniegaVersion, instDir string, log LogFn, onP
 			continue
 		}
 		dest := ogulniegaModDest(dir, m)
+		if rel, rerr := filepath.Rel(dir, dest); rerr == nil && removed[filepath.ToSlash(rel)] {
+			continue
+		}
 		if _, derr := os.Stat(dest + ".disabled"); derr == nil {
 			continue
 		}

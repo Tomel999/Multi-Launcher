@@ -1,5 +1,4 @@
 import { useEffect, useState } from "preact/hooks";
-import { syncPlugins } from "./plugins/loader";
 import { PERM_LABELS } from "./plugins/perms";
 import { InstallModal } from "./plugins/InstallModal";
 import {
@@ -13,6 +12,7 @@ import {
   InstallPluginFromURL,
   SetPluginEnabled,
   RemovePlugin,
+  RestartApp,
   PickPluginFile,
   FetchVerifiedPlugins
 } from "../wailsjs/go/main/App";
@@ -57,8 +57,7 @@ export function PluginsPanel() {
     setBusy(true);
     try {
       await InstallPluginFromURL(url.trim());
-      setUrl("");
-      refresh();
+      await RestartApp();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -69,8 +68,7 @@ export function PluginsPanel() {
     setBusy(true);
     try {
       await InstallPluginFromZip(pending.path);
-      setPending(null);
-      refresh();
+      await RestartApp();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -80,8 +78,7 @@ export function PluginsPanel() {
   const toggle = async (p) => {
     try {
       await SetPluginEnabled(p.manifest.id, !p.enabled);
-      refresh();
-      syncPlugins();
+      await RestartApp();
     } catch (e) {
       setError(String(e));
     }
@@ -95,8 +92,7 @@ export function PluginsPanel() {
     setConfirming(null);
     try {
       await RemovePlugin(p.manifest.id);
-      refresh();
-      syncPlugins();
+      await RestartApp();
     } catch (e) {
       setError(String(e));
     }
@@ -127,8 +123,7 @@ export function PluginsPanel() {
   const saveConfig = async (p) => {
     try {
       await SavePluginSettings(p.manifest.id, JSON.stringify(settingsDraft));
-      setConfiguring(null);
-      syncPlugins();
+      await RestartApp();
     } catch (e) {
       setError(String(e));
     }
@@ -151,8 +146,7 @@ export function PluginsPanel() {
     setInstallingId(p.id);
     try {
       await InstallPluginFromURL(p.downloadUrl);
-      refresh();
-      syncPlugins();
+      await RestartApp();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -247,7 +241,7 @@ export function PluginsPanel() {
                                     <span>{confirming === p.manifest.id ? "Confirm?" : "Remove"}</span>
                                 </button>
                             </div>
-                            {configuring === p.manifest.id && <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8, padding: "8px 12px", borderTop: "1px solid var(--color-border)" }}>
+                            {configuring === p.manifest.id && <div className="plugin-config" style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8, padding: "8px 12px", borderTop: "1px solid var(--color-border)" }}>
                                     {p.manifest.settings.map((f) => <label key={f.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, fontSize: 13, color: "var(--color-text)" }}>
                                             <span>{f.label}</span>
                                             {f.type === "bool" ? <input type="checkbox" checked={!!settingsDraft[f.key]} onChange={(e) => setField(f.key, e.target.checked)} /> : f.type === "select" ? <select value={settingsDraft[f.key] ?? ""} onChange={(e) => setField(f.key, e.target.value)}>
@@ -259,7 +253,7 @@ export function PluginsPanel() {
     style={{ maxWidth: 180 }}
   />}
                                         </label>)}
-                                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                                    <div className="plugin-config-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                                         <button className="modal-btn" onClick={() => setConfiguring(null)}>Cancel</button>
                                         <button className="modal-btn primary" onClick={() => saveConfig(p)}>Save</button>
                                     </div>

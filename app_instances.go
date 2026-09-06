@@ -159,6 +159,18 @@ func (a *App) DeleteInstance(name string) error {
 	return os.RemoveAll(launcher.InstanceDir(name))
 }
 
+// RenameInstance renames an instance's directory and display name. The game
+// must not be running (Windows locks the files). Name collisions are an
+// error — unlike CreateInstance there is no silent suffixing.
+func (a *App) RenameInstance(oldName, newName string) error {
+	if launcher.IsRunning() {
+		return fmt.Errorf("stop the game before renaming")
+	}
+	instanceMu.Lock()
+	defer instanceMu.Unlock()
+	return launcher.RenameInstanceDir(oldName, newName)
+}
+
 // instanceUsage is the set of shared files still needed after the doomed
 // instances are gone: mcVersions in use and loader builds in use.
 type instanceUsage struct {

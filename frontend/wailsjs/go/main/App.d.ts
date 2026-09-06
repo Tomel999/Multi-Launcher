@@ -160,7 +160,11 @@ export function PruneOrphanedVersions(arg1:Array<string>):Promise<Array<launcher
 
 export function RemovePlugin(arg1:string):Promise<void>;
 
+export function RenameInstance(arg1:string,arg2:string):Promise<void>;
+
 export function RenameWorld(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function RestartApp():Promise<void>;
 
 export function RunPluginCommand(arg1:string,arg2:string):Promise<any>;
 

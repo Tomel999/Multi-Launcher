@@ -243,6 +243,25 @@ func CreateInstanceDir(name string) (string, error) {
 	}
 }
 
+func RenameInstanceDir(oldName, newName string) error {
+	newName = strings.TrimSpace(newName)
+	if newName == "" {
+		return fmt.Errorf("empty instance name")
+	}
+	oldDir := filepath.Join(root(), "instances", sanitize(oldName))
+	newDir := filepath.Join(root(), "instances", sanitize(newName))
+	if oldDir == newDir {
+		return nil
+	}
+	if _, err := os.Stat(oldDir); err != nil {
+		return fmt.Errorf("instance %q not found", oldName)
+	}
+	if _, err := os.Stat(newDir); err == nil {
+		return fmt.Errorf("name %q is already in use", newName)
+	}
+	return os.Rename(oldDir, newDir)
+}
+
 type Plugin struct {
 	Name     string `json:"name"`
 	Filename string `json:"filename"`

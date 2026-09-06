@@ -145,7 +145,10 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             VERSION="${{ github.ref_name }}"
+            # NSIS VIFileVersion must be numeric X.X.X.X, so drop any
+            # "-prerelease" suffix from the tag (0.1.0-beta -> 0.1.0).
             NSIS_VER="${VERSION#v}"
+            NSIS_VER="${NSIS_VER%%-*}"
           else
             VERSION="dev-${GITHUB_SHA::7}"
             NSIS_VER="0.0.0"

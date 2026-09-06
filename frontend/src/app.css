@@ -2937,13 +2937,13 @@
 .instance-card-icon img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 10px;
 }
 .inst-icon img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 12px;
 }
 .inst-header-icon-btns {
@@ -3609,7 +3609,7 @@
   width: 32px;
   height: 32px;
   border-radius: 4px;
-  object-fit: cover;
+  object-fit: contain;
   flex-shrink: 0;
 }
 .inst-item-body {

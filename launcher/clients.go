@@ -38,6 +38,9 @@ var registeredClients = []ClientInfo{
 	{
 		ID: "dawn", Name: "Dawn",
 	},
+	{
+		ID: "ogulniega", Name: "Ogulniega",
+	},
 }
 
 func Clients() []ClientInfo { return registeredClients }
@@ -50,6 +53,8 @@ func ClientVersions(id string) ([]ClientVersion, error) {
 		return featherVersions(id)
 	case "dawn":
 		return dawnVersions()
+	case "ogulniega":
+		return ogulniegaVersions()
 	}
 	return nil, fmt.Errorf("unknown client %q", id)
 }
@@ -60,6 +65,8 @@ func LaunchClient(instName, clientID, version, module string, acc Account, opts 
 		return LaunchLunar(instName, version, module, acc, LunarLaunchOptions{LaunchOptions: opts, Module: module}, log, state, onProgress)
 	case "feather", "dawn":
 		return LaunchFeather(clientID, instName, version, module, acc, opts, log, state, onProgress)
+	case "ogulniega":
+		return LaunchOgulniega(instName, version, module, acc, opts, log, state, onProgress)
 	}
 	return fmt.Errorf("unknown client %q", clientID)
 }

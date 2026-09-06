@@ -18,6 +18,7 @@ import neoforgeIcon from "./assets/neoforged.svg";
 import lunarIcon from "./assets/lunar.png";
 import featherIcon from "./assets/feather.png";
 import dawnIcon from "./assets/dawn.png";
+import ogulniegaIcon from "./assets/ogulniega.png";
 const icons = [
   { icon: <i className="ph ph-house" />, label: "Home", id: "home" },
   { icon: <i className="ph ph-cube" />, label: "Instances", id: "instances" },
@@ -76,7 +77,8 @@ const loaderIcon = {
 const clientIcon = {
   lunar: lunarIcon,
   feather: featherIcon,
-  dawn: dawnIcon
+  dawn: dawnIcon,
+  ogulniega: ogulniegaIcon
 };
 const neoPrefix = (mc) => {
   const old = mc.match(/^1\.(\d+)(?:\.(\d+))?$/);

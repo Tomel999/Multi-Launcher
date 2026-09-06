@@ -34,7 +34,15 @@ func (a *App) DownloadContent(instName, subfolder, url, filename string) error {
 
 func (a *App) DeleteContent(instName, subfolder, filename string) error {
 	dir, sub := a.contentLocation(instName, subfolder)
-	return launcher.DeleteContentDir(dir, sub, filename)
+	if err := launcher.DeleteContentDir(dir, sub, filename); err != nil {
+		return err
+	}
+	if subfolder == "mods" {
+		if client, _, _ := a.clientInstanceMeta(instName); client == "lunar" || client == "ogulniega" {
+			launcher.MarkUserRemoved(filepath.Join(dir, sub), filename)
+		}
+	}
+	return nil
 }
 
 func (a *App) ToggleContent(instName, subfolder, filename string, disable bool) error {
@@ -50,26 +58,37 @@ func (a *App) InspectMod(instName, subfolder, filename string) launcher.ModInfo 
 // contentLocation resolves where an instance's content subfolder lives.
 // The "mods" subfolder of lunar instances maps onto
 // instances/<name>/mods/<module>-<mcVersion> (where that instance's base
-// modpack is installed), returned with an empty subfolder because the target
-// already IS the mods folder. Everything else stays in the regular instance
-// directory.
+// modpack is installed), and Ogulniega instances map onto
+// instances/<name>/mods/<entryName> from launcher.json (with OptiFine one
+// level down in preinstalled/). Both are returned with an empty subfolder
+// because the target already IS the mods folder. Everything else stays in
+// the regular instance directory.
 func (a *App) contentLocation(instName, subfolder string) (dir, sub string) {
 	if subfolder == "mods" {
-		if v, m := a.lunarInstanceVersion(instName); v != "" {
-			return launcher.LunarInstanceModsDir(instName, v, strings.ToLower(m)), ""
+		if client, v, m := a.clientInstanceMeta(instName); client != "" {
+			switch client {
+			case "lunar":
+				if v != "" {
+					return launcher.LunarInstanceModsDir(instName, v, strings.ToLower(m)), ""
+				}
+			case "ogulniega":
+				if sub, err := launcher.OgulniegaModsSubdir(v, m); err == nil && sub != "" {
+					return filepath.Join(launcher.InstanceDir(instName), "mods", sub), ""
+				}
+			}
 		}
 	}
 	return launcher.InstanceDir(instName), subfolder
 }
 
-func (a *App) lunarInstanceVersion(instName string) (version, module string) {
+func (a *App) clientInstanceMeta(instName string) (client, version, module string) {
 	data, err := os.ReadFile(launcherStatePath())
 	if err != nil {
-		return "", ""
+		return "", "", ""
 	}
 	var s persistedState
 	if json.Unmarshal(data, &s) != nil {
-		return "", ""
+		return "", "", ""
 	}
 	var groups []struct {
 		Instances []struct {
@@ -83,20 +102,23 @@ func (a *App) lunarInstanceVersion(instName string) (version, module string) {
 		} `json:"instances"`
 	}
 	if json.Unmarshal(s.Groups, &groups) != nil {
-		return "", ""
+		return "", "", ""
 	}
 	for _, g := range groups {
 		for _, inst := range g.Instances {
 			if inst.Name != instName {
 				continue
 			}
-			if inst.Meta.Source == "lunar" || (inst.Meta.Source == "client" && inst.Meta.Client == "lunar") {
-				return inst.Meta.MCVersion, inst.Meta.Module
+			if inst.Meta.Source == "lunar" {
+				return "lunar", inst.Meta.MCVersion, inst.Meta.Module
 			}
-			return "", ""
+			if inst.Meta.Source == "client" {
+				return inst.Meta.Client, inst.Meta.MCVersion, inst.Meta.Module
+			}
+			return "", "", ""
 		}
 	}
-	return "", ""
+	return "", "", ""
 }
 
 // instanceMu serializes instance create/duplicate so concurrent UI actions

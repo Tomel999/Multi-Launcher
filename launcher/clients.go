@@ -25,6 +25,7 @@ type ClientVersion struct {
 	ID        string   `json:"id"`
 	Modules   []string `json:"modules"`
 	LunarOnly bool     `json:"lunarOnly"`
+	Loader    string   `json:"loader,omitempty"`
 }
 
 var registeredClients = []ClientInfo{

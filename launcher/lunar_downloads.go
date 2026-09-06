@@ -455,6 +455,8 @@ func lunarInstallBaseModpack(instName, version, module string, bp *struct {
 	}
 	var installed []string
 	var redownloaded int
+	removed := userRemovedSet(modsDir)
+	userManaged := userModsSet(modsDir)
 	tr := newTracker("lunar-modpack", onProgress)
 	tr.setTotal(int64(len(index.Files)), 0)
 	for _, entry := range index.Files {
@@ -480,6 +482,28 @@ func lunarInstallBaseModpack(instName, version, module string, bp *struct {
 		}
 		dest := filepath.Join(modsDir, filepath.Join(parts[1:]...))
 		os.MkdirAll(filepath.Dir(dest), 0o755)
+		slash := filepath.ToSlash(filepath.Join(parts[1:]...))
+		if userManaged[slash] {
+			tr.fileDone(filepath.Base(dest))
+			continue
+		}
+		if removed[slash] {
+			if _, serr := os.Stat(dest); serr == nil {
+				markUserMod(modsDir, slash)
+				delete(removed, slash)
+				log("    " + filepath.Base(dest) + " stays user-managed")
+			} else {
+				log("    " + filepath.Base(dest) + " stays removed")
+			}
+			tr.fileDone(filepath.Base(dest))
+			continue
+		}
+		if _, derr := os.Stat(dest + ".disabled"); derr == nil {
+			os.Remove(dest)
+			log("    " + filepath.Base(dest) + " stays disabled")
+			tr.fileDone(filepath.Base(dest))
+			continue
+		}
 		if h, err := sha1File(dest); err == nil && strings.EqualFold(h, entry.Hashes.SHA1) {
 			installed = append(installed, filepath.Join(parts[1:]...))
 			tr.fileDone(filepath.Base(dest))
@@ -509,6 +533,9 @@ func lunarInstallBaseModpack(instName, version, module string, bp *struct {
 	for _, p := range previous {
 		if prevSet[p] && !slices.Contains(installed, p) {
 			rel := filepath.FromSlash(p)
+			if userManaged[filepath.ToSlash(p)] {
+				continue
+			}
 			if !filepath.IsAbs(rel) && !strings.Contains(rel, "..") {
 				os.Remove(filepath.Join(modsDir, rel))
 			}

@@ -34,6 +34,7 @@ export namespace launcher {
 	    id: string;
 	    modules: string[];
 	    lunarOnly: boolean;
+	    loader?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ClientVersion(source);
@@ -44,6 +45,7 @@ export namespace launcher {
 	        this.id = source["id"];
 	        this.modules = source["modules"];
 	        this.lunarOnly = source["lunarOnly"];
+	        this.loader = source["loader"];
 	    }
 	}
 	export class DeviceCode {

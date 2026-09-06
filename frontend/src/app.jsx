@@ -1397,7 +1397,8 @@ export function App() {
         if (Array.isArray(g) && g.length) {
           const g2 = g.map((gr, i) => ({
             ...gr.name === "Default" && !gr.default ? { ...gr, default: true } : gr,
-            expanded: gr.expanded ?? i === 0
+            expanded: gr.expanded ?? i === 0,
+            instances: (gr.instances || []).map((inst) => inst?.meta?.source === "client" && inst.meta.client === "ogulniega" && !inst.meta.loader ? { ...inst, meta: { ...inst.meta, loader: "Fabric" } } : inst)
           }));
           setGroups(g2);
           const san = (n) => String(n || "").replace(/[\\/:*?"<>|]/g, "_").trim().toLowerCase() || "instance";
@@ -1789,6 +1790,7 @@ export function App() {
   const [clientVersion, setClientVersion] = useState("");
   const [clientModules, setClientModules] = useState([]);
   const [clientModule, setClientModule] = useState("");
+  const [clientLoader, setClientLoader] = useState("");
   const [clientLoading, setClientLoading] = useState(false);
   useEffect(() => {
     if (!showInstModal || instTab !== "clients") return;
@@ -1802,6 +1804,7 @@ export function App() {
     setClientVersion("");
     setClientModules([]);
     setClientModule("");
+    setClientLoader("");
     ClientVersions(client).then((vs) => {
       setClientVersions(vs || []);
       setClientVersion(vs?.[0]?.id || "");
@@ -1810,7 +1813,9 @@ export function App() {
   }, [showInstModal, instTab, client]);
   useEffect(() => {
     if (!clientVersions.length || !clientVersion) return;
-    const mods = clientVersions.find((v) => v.id === clientVersion)?.modules || [];
+    const ver = clientVersions.find((v) => v.id === clientVersion);
+    const mods = ver?.modules || [];
+    setClientLoader(ver?.loader || "");
     const seen = /* @__PURE__ */ new Set();
     const deduped = [];
     for (const m of mods) {
@@ -2341,7 +2346,7 @@ export function App() {
   const setInstFromClient = () => {
     if (!client || !clientVersion) return null;
     const name = instName.trim() || `${clientName(client)} ${clientVersion}`;
-    const loader2 = clientModule === "fabric" ? "Fabric" : clientModule === "forge" ? "Forge" : void 0;
+    const loader2 = clientLoader || (clientModule === "fabric" ? "Fabric" : clientModule === "forge" ? "Forge" : void 0);
     return {
       source: "client",
       client,

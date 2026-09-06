@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 const ogulniegaLauncherURL = "https://ogulniega.com/files/launcher.json"
@@ -36,6 +38,13 @@ func ogulniegaCachePath() string {
 }
 
 func ogulniegaLoad() (*ogulniegaLauncherFile, error) {
+	ogulniegaMem.Lock()
+	if ogulniegaMem.lf != nil && time.Since(ogulniegaMem.at) < 5*time.Minute {
+		lf := ogulniegaMem.lf
+		ogulniegaMem.Unlock()
+		return lf, nil
+	}
+	ogulniegaMem.Unlock()
 	var lf ogulniegaLauncherFile
 	fetchErr := fetchJSON(ogulniegaLauncherURL, &lf)
 	if fetchErr == nil && len(lf.Versions) > 0 {
@@ -44,11 +53,17 @@ func ogulniegaLoad() (*ogulniegaLauncherFile, error) {
 			os.MkdirAll(filepath.Dir(p), 0o755)
 			os.WriteFile(p, data, 0o644)
 		}
+		ogulniegaMem.Lock()
+		ogulniegaMem.lf, ogulniegaMem.at = &lf, time.Now()
+		ogulniegaMem.Unlock()
 		return &lf, nil
 	}
 	if data, rerr := os.ReadFile(ogulniegaCachePath()); rerr == nil {
 		var cached ogulniegaLauncherFile
 		if json.Unmarshal(data, &cached) == nil && len(cached.Versions) > 0 {
+			ogulniegaMem.Lock()
+			ogulniegaMem.lf, ogulniegaMem.at = &cached, time.Now()
+			ogulniegaMem.Unlock()
 			return &cached, nil
 		}
 	}
@@ -56,6 +71,27 @@ func ogulniegaLoad() (*ogulniegaLauncherFile, error) {
 		return nil, fmt.Errorf("ogulniega: %w", fetchErr)
 	}
 	return nil, fmt.Errorf("ogulniega: empty version list")
+}
+
+var ogulniegaMem struct {
+	sync.Mutex
+	lf *ogulniegaLauncherFile
+	at time.Time
+}
+
+// OgulniegaModsSubdir resolves the per-version mods folder name
+// (e.g. "26.2-sodium") for an instance's mcVersion+module without
+// exposing the raw launcher.json entry.
+func OgulniegaModsSubdir(version, module string) (string, error) {
+	lf, err := ogulniegaLoad()
+	if err != nil {
+		return "", err
+	}
+	entry, err := ogulniegaFind(lf, version, module)
+	if err != nil {
+		return "", err
+	}
+	return entry.Name, nil
 }
 
 func ogulniegaModule(name string) string {
@@ -71,9 +107,13 @@ func ogulniegaVersions() ([]ClientVersion, error) {
 		return nil, err
 	}
 	byMC := map[string][]string{}
+	loaderByMC := map[string]string{}
 	for _, v := range lf.Versions {
 		if v.Name == "" || v.MinecraftVersion == "" {
 			continue
+		}
+		if loaderByMC[v.MinecraftVersion] == "" {
+			loaderByMC[v.MinecraftVersion] = ogulniegaLoaderName(v.LoaderName)
 		}
 		mod := ogulniegaModule(v.Name)
 		dup := false
@@ -95,7 +135,7 @@ func ogulniegaVersions() ([]ClientVersion, error) {
 				filtered = append(filtered, m)
 			}
 		}
-		out = append(out, ClientVersion{ID: mc, Modules: filtered})
+		out = append(out, ClientVersion{ID: mc, Modules: filtered, Loader: loaderByMC[mc]})
 	}
 	sort.Slice(out, func(i, j int) bool { return lunarVersionLess(out[i].ID, out[j].ID) })
 	return out, nil
@@ -128,6 +168,19 @@ func ogulniegaFind(lf *ogulniegaLauncherFile, version, module string) (*ogulnieg
 		return &cand[0], nil
 	}
 	return nil, fmt.Errorf("ogulniega: version %q needs a module", version)
+}
+
+func ogulniegaLoaderName(loaderName string) string {
+	lower := strings.ToLower(loaderName)
+	for _, p := range []string{"neoforge", "forge", "fabric", "quilt"} {
+		if strings.HasPrefix(lower, p+"-") || strings.HasPrefix(lower, p+"_") {
+			if p == "neoforge" {
+				return "NeoForge"
+			}
+			return strings.ToUpper(p[:1]) + p[1:]
+		}
+	}
+	return ""
 }
 
 func ogulniegaLoaderVersion(v *ogulniegaVersion) string {
@@ -204,16 +257,39 @@ func ogulniegaEnsureMods(entry *ogulniegaVersion, instDir string, log LogFn, onP
 	}
 	dir := filepath.Join(instDir, "mods", entry.Name)
 	os.MkdirAll(filepath.Join(dir, "preinstalled"), 0o755)
-	keep := map[string]bool{}
+	removed := userRemovedSet(dir)
+	userManaged := userModsSet(dir)
+	var installed []string
 	var jobs []job
 	for _, m := range cv.Mods {
 		if m.Name == "" || m.URL == "" {
 			continue
 		}
 		dest := ogulniegaModDest(dir, m)
-		if rel, rerr := filepath.Rel(dir, dest); rerr == nil {
-			keep[rel] = true
+		rel, rerr := filepath.Rel(dir, dest)
+		if rerr != nil {
+			continue
 		}
+		slash := filepath.ToSlash(rel)
+		if userManaged[slash] {
+			continue
+		}
+		if removed[slash] {
+			if _, serr := os.Stat(dest); serr == nil {
+				markUserMod(dir, slash)
+				delete(removed, slash)
+				log("    [mod] " + m.Name + " stays user-managed")
+			} else {
+				log("    [mod] " + m.Name + " stays removed")
+			}
+			continue
+		}
+		if _, derr := os.Stat(dest + ".disabled"); derr == nil {
+			os.Remove(dest)
+			log("    [mod] " + m.Name + " stays disabled")
+			continue
+		}
+		installed = append(installed, rel)
 		if !ogulniegaModValid(dest, m.SHA512) {
 			os.Remove(dest)
 			jobs = append(jobs, job{url: m.URL, dest: dest})
@@ -229,6 +305,9 @@ func ogulniegaEnsureMods(entry *ogulniegaVersion, instDir string, log LogFn, onP
 			continue
 		}
 		dest := ogulniegaModDest(dir, m)
+		if _, derr := os.Stat(dest + ".disabled"); derr == nil {
+			continue
+		}
 		if ogulniegaModValid(dest, m.SHA512) {
 			continue
 		}
@@ -248,22 +327,31 @@ func ogulniegaEnsureMods(entry *ogulniegaVersion, instDir string, log LogFn, onP
 			return fmt.Errorf("ogulniega %s: mod %s failed to verify", entry.Name, m.Name)
 		}
 	}
-	for _, sub := range []string{".", "preinstalled"} {
-		base := filepath.Join(dir, sub)
-		if fis, err := os.ReadDir(base); err == nil {
-			for _, fi := range fis {
-				if fi.IsDir() {
-					continue
-				}
-				rel := fi.Name()
-				if sub != "." {
-					rel = filepath.Join(sub, fi.Name())
-				}
-				if !keep[rel] {
-					os.Remove(filepath.Join(base, fi.Name()))
-				}
-			}
+	marker := filepath.Join(dir, ".ogulniega-files.json")
+	var previous []string
+	if data, err := os.ReadFile(marker); err == nil {
+		_ = json.Unmarshal(data, &previous)
+	}
+	curSet := make(map[string]bool, len(installed))
+	for _, p := range installed {
+		curSet[p] = true
+	}
+	for _, p := range previous {
+		if curSet[p] {
+			continue
 		}
+		if userManaged[filepath.ToSlash(p)] {
+			continue
+		}
+		if _, derr := os.Stat(filepath.Join(dir, p) + ".disabled"); derr == nil {
+			continue
+		}
+		if !filepath.IsAbs(p) && !strings.Contains(p, "..") {
+			os.Remove(filepath.Join(dir, p))
+		}
+	}
+	if data, err := json.Marshal(installed); err == nil {
+		os.WriteFile(marker, data, 0o644)
 	}
 	return nil
 }

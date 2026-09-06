@@ -292,31 +292,37 @@ func ListFilesDir(baseDir, subfolder string) []Plugin {
 	if err := os.MkdirAll(modsDir, 0o755); err != nil {
 		return []Plugin{}
 	}
-	entries, err := os.ReadDir(modsDir)
-	if err != nil {
-		return []Plugin{}
-	}
 	out := []Plugin{}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
+	addEntries := func(dir, prefix string) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return
 		}
-		name := e.Name()
-		lower := strings.ToLower(name)
-		if !strings.HasSuffix(lower, ".jar") && !strings.HasSuffix(lower, ".zip") && !strings.HasSuffix(lower, ".disabled") {
-			continue
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			lower := strings.ToLower(name)
+			if !strings.HasSuffix(lower, ".jar") && !strings.HasSuffix(lower, ".zip") && !strings.HasSuffix(lower, ".disabled") {
+				continue
+			}
+			p := Plugin{
+				Name:     name,
+				Filename: prefix + name,
+				Disabled: strings.HasSuffix(lower, ".disabled"),
+			}
+			if info, err := e.Info(); err == nil {
+				p.Size = info.Size()
+			}
+			out = append(out, p)
 		}
-		disabled := strings.HasSuffix(lower, ".disabled")
-		p := Plugin{
-			Name:     name,
-			Filename: name,
-			Disabled: disabled,
-		}
-		if info, err := e.Info(); err == nil {
-			p.Size = info.Size()
-		}
-		out = append(out, p)
 	}
+	addEntries(modsDir, "")
+	// Client mod folders (e.g. Ogulniega) keep some jars one level down
+	// (OptiFine lives in preinstalled/ for OptiFabric). Surface them with
+	// a prefixed Filename so delete/toggle/inspect hit the right path.
+	addEntries(filepath.Join(modsDir, "preinstalled"), "preinstalled"+string(os.PathSeparator))
 	return out
 }
 

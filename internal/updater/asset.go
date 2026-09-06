@@ -40,13 +40,6 @@ var SupportedPlatforms = []struct{ GOOS, GOARCH string }{
 	{"linux", "arm64"},
 }
 
-// IsSupported reports whether the given GOOS/GOARCH pair has a defined
-// release asset name.
-func IsSupported(goos, goarch string) bool {
-	_, ok := assetExt[goos]
-	return ok && goarch != ""
-}
-
 // AssetNameFor builds the expected release asset file name for a platform,
 // e.g. AssetNameFor("windows", "amd64") == "Multi-Launcher-windows-amd64.exe".
 // An empty goarch or an unsupported goos yields an error.

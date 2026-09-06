@@ -203,23 +203,11 @@ func InstanceDir(name string) string {
 	return p
 }
 
-// InstanceExists reports whether an instance with the given display name
-// already has a directory on disk. Display names are sanitized the same way
-// they are when the directory is created, so callers can pass the raw name
-// the user typed (or that was derived from meta).
-func InstanceExists(name string) bool {
-	p := filepath.Join(root(), "instances", sanitize(name))
-	_, err := os.Stat(p)
-	return err == nil
-}
-
 // CreateInstanceDir atomically creates the on-disk directory for a new
-// instance and returns the final display name. Unlike the
-// UniqueInstanceName-then-InstanceDir dance, the existence check and the
+// instance and returns the final display name. The existence check and the
 // directory creation are a single os.Mkdir call, so two concurrent creators
 // can never both "win" the same name (check-then-create TOCTOU). If the
-// requested name is taken, "Foo (2)", "Foo (3)"… are tried, matching
-// UniqueInstanceName's convention. Returns the final display name.
+// requested name is taken, "Foo (2)", "Foo (3)"… are tried.
 func CreateInstanceDir(name string) (string, error) {
 	instances := filepath.Join(root(), "instances")
 	if err := os.MkdirAll(instances, 0o755); err != nil {
@@ -251,23 +239,6 @@ func CreateInstanceDir(name string) (string, error) {
 		}
 		if ok {
 			return display, nil
-		}
-	}
-}
-
-// UniqueInstanceName returns a name that does not collide with any existing
-// instance directory. If "Foo" is taken, it tries "Foo (2)", "Foo (3)", and
-// so on. Check-then-act is not atomic — new code that CREATES an instance
-// directory should use CreateInstanceDir instead; this remains for
-// display-only/derive-a-name callers such as DuplicateInstance.
-func UniqueInstanceName(name string) string {
-	if !InstanceExists(name) {
-		return name
-	}
-	for i := 2; ; i++ {
-		candidate := fmt.Sprintf("%s (%d)", name, i)
-		if !InstanceExists(candidate) {
-			return candidate
 		}
 	}
 }
@@ -326,27 +297,15 @@ func ListFilesDir(baseDir, subfolder string) []Plugin {
 	return out
 }
 
-func DownloadContent(instName, subfolder, url, filename string) error {
-	return DownloadContentDir(InstanceDir(instName), subfolder, url, filename)
-}
-
 func DownloadContentDir(baseDir, subfolder, url, filename string) error {
 	dest := filepath.Join(baseDir, subfolder, filename)
 	os.Remove(dest)
 	return downloadTo(url, dest, 0, nil)
 }
 
-func DeleteContent(instName, subfolder, filename string) error {
-	return DeleteContentDir(InstanceDir(instName), subfolder, filename)
-}
-
 func DeleteContentDir(baseDir, subfolder, filename string) error {
 	dest := filepath.Join(baseDir, subfolder, filename)
 	return os.Remove(dest)
-}
-
-func ToggleContent(instName, subfolder, filename string, disable bool) error {
-	return ToggleContentDir(InstanceDir(instName), subfolder, filename, disable)
 }
 
 func ToggleContentDir(baseDir, subfolder, filename string, disable bool) error {
@@ -365,10 +324,6 @@ func ToggleContentDir(baseDir, subfolder, filename string, disable bool) error {
 type ModInfo struct {
 	Name string `json:"name"`
 	Icon string `json:"icon"`
-}
-
-func InspectMod(instName, subfolder, filename string) ModInfo {
-	return InspectModDir(InstanceDir(instName), subfolder, filename)
 }
 
 func InspectModDir(baseDir, subfolder, filename string) ModInfo {

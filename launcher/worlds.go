@@ -76,7 +76,7 @@ func DuplicateWorld(instName, name string) (string, error) {
 		}
 		newName = fmt.Sprintf("%s (copy %d)", name, i)
 	}
-	if err := copyTree(filepath.Join(saves, name), filepath.Join(saves, newName)); err != nil {
+	if err := copyDirRecursive(filepath.Join(saves, name), filepath.Join(saves, newName)); err != nil {
 		return "", err
 	}
 	return newName, nil

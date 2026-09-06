@@ -12,36 +12,6 @@ import (
 	"strings"
 )
 
-func featherEnsureFile(client string, lib featherLib, tr *tracker) (string, bool, error) {
-	if lib.URL == "" || lib.Name == "" {
-		return "", false, nil
-	}
-	dir := featherJarDir(client, lib.SHA1)
-	dest := filepath.Join(dir, filepath.Base(lib.Name))
-	if fi, err := os.Stat(dest); err == nil && fi.Size() > 0 {
-		if lib.SHA1 != "" && lib.Size == 0 {
-			if sum, err := sha1File(dest); err == nil && sum == lib.SHA1 {
-				return dest, featherHasFabricMod(dest), nil
-			}
-		} else if lib.Size == 0 {
-			return dest, featherHasFabricMod(dest), nil
-		} else if fi.Size() == lib.Size {
-			return dest, featherHasFabricMod(dest), nil
-		}
-	}
-	if err := downloadTo(lib.URL, dest, lib.Size, tr); err != nil {
-		return "", false, err
-	}
-	if lib.SHA1 != "" {
-		sum, err := sha1File(dest)
-		if err == nil && sum != lib.SHA1 {
-			os.Remove(dest)
-			return "", false, fmt.Errorf("feather %s: sha1 mismatch", filepath.Base(dest))
-		}
-	}
-	return dest, featherHasFabricMod(dest), nil
-}
-
 func featherDownloadLibs(client string, m *featherManifest, instDir string, log LogFn, onProgress ProgressFn) ([]string, error) {
 	modsDir := filepath.Join(instDir, "mods")
 	os.MkdirAll(modsDir, 0o755)

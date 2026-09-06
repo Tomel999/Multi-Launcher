@@ -198,14 +198,3 @@ func TestChecksumAssetForMissingSidecar(t *testing.T) {
 	}
 }
 
-func TestIsSupported(t *testing.T) {
-	if !IsSupported("windows", "amd64") || !IsSupported("darwin", "arm64") || !IsSupported("linux", "amd64") {
-		t.Error("windows/darwin/linux should be supported")
-	}
-	if IsSupported("plan9", "amd64") {
-		t.Error("plan9 should not be supported")
-	}
-	if IsSupported("windows", "") {
-		t.Error("empty arch should not be supported")
-	}
-}

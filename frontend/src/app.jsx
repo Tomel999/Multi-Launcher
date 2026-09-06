@@ -655,11 +655,6 @@ const fmtPlayTime = (ticks) => {
   const m = totalMin % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
-const fmtNum = (v) => {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return String(v);
-  return String(Math.round(n * 1e3) / 1e3);
-};
 const itemIconCache = {};
 const WorldsTab = ({ instName, mcVersion }) => {
   const [worlds, setWorlds] = useState([]);

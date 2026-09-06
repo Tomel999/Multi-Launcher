@@ -996,7 +996,7 @@ func sha1File(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func sha256File(path string) (string, error) {
+func SHA256File(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err

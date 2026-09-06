@@ -201,19 +201,6 @@ func accountForLaunch(id string) Account {
 	return freshAccount(acc)
 }
 
-func ActiveAccount() Account {
-	accountsMu.Lock()
-	defer accountsMu.Unlock()
-	for _, a := range accountsList {
-		if a.ID == activeAccID {
-			a.AccessToken = ""
-			a.RefreshToken = ""
-			return a
-		}
-	}
-	return Account{}
-}
-
 func SetActiveAccount(id string) error {
 	accountsMu.Lock()
 	defer accountsMu.Unlock()
@@ -287,33 +274,4 @@ func DeleteAccount(id string) error {
 		return fmt.Errorf("save accounts: %w", saveErr)
 	}
 	return nil
-}
-
-func AccountByName(name string) Account {
-	accountsMu.Lock()
-	var acc Account
-	found := false
-	if activeAccID != "" {
-		for _, a := range accountsList {
-			if a.ID == activeAccID {
-				acc = a
-				found = true
-				break
-			}
-		}
-	}
-	if !found {
-		for _, a := range accountsList {
-			if a.Name == name {
-				acc = a
-				found = true
-				break
-			}
-		}
-	}
-	accountsMu.Unlock()
-	if !found {
-		return Account{Name: name, UserType: "legacy"}
-	}
-	return freshAccount(acc)
 }

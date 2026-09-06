@@ -4,7 +4,6 @@ import { PERM_LABELS } from "./plugins/perms";
 import { InstallModal } from "./plugins/InstallModal";
 import {
   GetEnabledPlugins,
-  GetPluginPermissions,
   GetPluginCommands,
   GetPluginSettings,
   SavePluginSettings,
@@ -20,7 +19,6 @@ import {
 
 export function PluginsPanel() {
   const [plugins, setPlugins] = useState([]);
-  const [perms, setPerms] = useState([]);
   const [commands, setCommands] = useState({});
   const [cmdResult, setCmdResult] = useState("");
   const [url, setUrl] = useState("");
@@ -40,8 +38,6 @@ export function PluginsPanel() {
     });
   };
   useEffect(() => {
-    GetPluginPermissions().then(setPerms).catch(() => {
-    });
     refresh();
   }, []);
   const pickFile = async () => {

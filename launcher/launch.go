@@ -32,8 +32,6 @@ type LaunchOptions struct {
 }
 type LogFn func(line string)
 
-type ConfirmFn func(message string) bool
-
 type StateFn func(running bool, pid int, errMsg string)
 
 type runningProc struct {

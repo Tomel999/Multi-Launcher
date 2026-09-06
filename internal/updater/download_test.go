@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -391,15 +390,3 @@ func TestCopyWithProgressNilCallback(t *testing.T) {
 	}
 }
 
-func TestUpdaterSetRelease(t *testing.T) {
-	u := NewUpdater(NewGitHubClient("o", "r"))
-	if u.Release() != nil {
-		t.Error("a fresh Updater should have no release")
-	}
-	r := &Release{TagName: "v1.0.0"}
-	u.SetRelease(r)
-	if u.Release() != r {
-		t.Error("SetRelease should round-trip")
-	}
-	_ = fmt.Sprint(u.Release().TagName)
-}

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -216,19 +214,6 @@ func (a *App) InstallPluginFromZip(zipPath string) (plugin.InstalledPlugin, erro
 	return *p, nil
 }
 
-func fileSHA256(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
 func (a *App) InstallPluginFromURL(rawURL string) (plugin.InstalledPlugin, error) {
 	baseURL, wantHash, err := plugin.ParsePinnedURL(rawURL)
 	if err != nil {
@@ -244,7 +229,7 @@ func (a *App) InstallPluginFromURL(rawURL string) (plugin.InstalledPlugin, error
 		return plugin.InstalledPlugin{}, err
 	}
 	if wantHash != "" {
-		got, err := fileSHA256(tmp.Name())
+		got, err := launcher.SHA256File(tmp.Name())
 		if err != nil {
 			return plugin.InstalledPlugin{}, err
 		}

@@ -381,7 +381,7 @@ func lunarInstallBaseModpack(instName, version, module string, bp *struct {
 		if bp.Hash == "" {
 			log("  Base modpack cache: no expected hash, keeping existing file")
 			need = false
-		} else if h, err := sha256File(mrpack); err == nil && strings.EqualFold(h, bp.Hash) {
+		} else if h, err := SHA256File(mrpack); err == nil && strings.EqualFold(h, bp.Hash) {
 			log("  Base modpack cache hit")
 			need = false
 		} else if err != nil {
@@ -399,7 +399,7 @@ func lunarInstallBaseModpack(instName, version, module string, bp *struct {
 			return err
 		}
 		if bp.Hash != "" {
-			h, err := sha256File(mrpack)
+			h, err := SHA256File(mrpack)
 			if err != nil {
 				return err
 			}

@@ -175,13 +175,6 @@ func (u *Updater) SetRelease(r *Release) {
 	u.release = r
 }
 
-// Release returns the recorded release, if any.
-func (u *Updater) Release() *Release {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	return u.release
-}
-
 // checksumAsset resolves the .sha256 sidecar for an asset from the recorded
 // release.
 func (u *Updater) checksumAsset(a Asset) (Asset, error) {

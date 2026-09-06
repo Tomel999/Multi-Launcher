@@ -123,7 +123,7 @@ func MigrateLegacyOverrides(instDir string) error {
 		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 			continue
 		}
-		if err := copyTree(src, instDir); err != nil {
+		if err := copyDirRecursive(src, instDir); err != nil {
 			return err
 		}
 		if err := os.RemoveAll(src); err != nil {
@@ -131,40 +131,6 @@ func MigrateLegacyOverrides(instDir string) error {
 		}
 	}
 	return nil
-}
-
-func copyTree(src, dest string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return nil
-		}
-		out := filepath.Join(dest, rel)
-		if info.IsDir() {
-			return os.MkdirAll(out, 0o755)
-		}
-		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
-			return err
-		}
-		in, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer in.Close()
-		w, err := os.Create(out)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
-		_, err = io.Copy(w, in)
-		return err
-	})
 }
 
 func InstallModpack(instName, packZip string, files []ModpackFile, onProgress ProgressFn) error {

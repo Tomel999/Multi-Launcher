@@ -1,7 +1,0 @@
-zrobić aby feather, lunar i dawn uzywaly javy z launchera a nie z ich bibliotek ---- done
-zrobić kilka przykladowych pluginow ---- ostatnie do zrobienia
-zrobić strone launchera ---- pod koniec do zrobienia
-zrobić kategorie do pluginow ---- done
-zrobić liste fetchowana z github repo pluginow sprawdzonych ---- po zrobieniu przykładowych pluginow
-wsparcie dla linux i macos ---- macos kompilacja przez github actions, podman/docker się nie da
-zmienienie dpapi na inne rozwiązanie ---- done
